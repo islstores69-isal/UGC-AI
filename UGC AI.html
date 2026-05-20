@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UGC Affiliate Studio - Outfit Prompt Generator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Alpine.js for React-like reactive states -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', 'Helvetica Neue', sans-serif; background-color: #080808; color: #ddd; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div x-data="ugcApp()" class="max-w-4xl mx-auto pb-24">
+        
+        <!-- Header -->
+        <div class="border-b border-[#1a1a1a] p-6 bg-[#0a0a0a]">
+            <div class="text-[10px] tracking-[3px] text-[#c9a96e] mb-1.5 font-bold">✦ UGC AFFILIATE STUDIO</div>
+            <div class="text-2xl font-extrabold text-white tracking-tight">Outfit Prompt Generator</div>
+            <div class="text-xs text-[#555] mt-1">Fashion & Apparel · Female Talent · Image + Video Ready</div>
+        </div>
+
+        <div class="p-5 space-y-8">
+            
+            <!-- Section 01: Clothing Product -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">01 · Clothing Product</div>
+                
+                <!-- Image Upload Area -->
+                <div class="mb-3">
+                    <!-- Drop Zone -->
+                    <div x-show="!preview" 
+                         @click="$refs.fileInput.click()" 
+                         @dragover.prevent="dragOver = true" 
+                         @dragleave="dragOver = false" 
+                         @drop.prevent="dragOver = false; handleDrop($event)"
+                         :class="dragOver ? 'border-[#c9a96e] bg-[#1a1208]' : 'border-[#2a2a2a] bg-[#0d0d0d]'"
+                         class="border-2 border-dashed rounded-xl p-7 text-center cursor-pointer transition-all">
+                        <div class="text-3xl mb-2">📷</div>
+                        <div class="text-xs text-[#888] mb-1">Upload product photo</div>
+                        <div class="text-[11px] text-[#444]">Tap to select or drag & drop · JPG, PNG, WEBP</div>
+                        <input x-ref="fileInput" type="file" accept="image/*" @change="handleFileChange" class="hidden" />
+                    </div>
+
+                    <!-- Preview Zone -->
+                    <div x-show="preview" class="bg-[#0d0d0d] border-2 border-[#2a2a2a] rounded-xl overflow-hidden" x-cloak>
+                        <div class="relative bg-[#111]">
+                            <img :src="preview" alt="Product" class="w-full max-h-[220px] object-contain mx-auto block" />
+                            <button @click="removeImage()" class="absolute top-2 right-2 bg-black/80 border border-[#333] text-white rounded-full w-7 h-7 cursor-pointer text-xs flex items-center justify-content-center hover:bg-black">✕</button>
+                        </div>
+                        <div class="p-3">
+                            <button x-show="!analyzed" @click="analyzeImage()" :disabled="analyzing"
+                                    :class="analyzing ? 'bg-[#1a1a1a] text-[#555] cursor-not-allowed' : 'bg-gradient-to-r from-[#1a3a1a] to-[#2a5a2a] border-[#2a5a2a] text-[#6be06b] cursor-pointer'"
+                                    class="w-full border rounded-lg p-2.5 text-xs font-bold font-inherit transition-all">
+                                <span x-text="analyzing ? '⏳ Analyzing product...' : '🔍 Auto-Analyze Image'"></span>
+                            </button>
+                            <div x-show="analyzed" class="text-center text-xs text-[#6be06b] py-1.5 font-bold" x-cloak>
+                                ✓ Image analyzed — form auto-filled!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Fields -->
+                <div class="space-y-2.5">
+                    <input type="text" x-model="productName" placeholder="Product name (e.g. Off-shoulder Ribbed Knit Sweater)" class="w-full bg-[#111] border-2 border-[#222] rounded-xl p-3 text-white text-sm font-inherit focus:outline-none focus:border-[#c9a96e]" />
+                    <textarea x-model="productDesc" placeholder="Brief description (material, style, target market, key features...)" rows="3" class="w-full bg-[#111] border-2 border-[#222] rounded-xl p-3 text-white text-xs font-inherit resize-none focus:outline-none focus:border-[#c9a96e]"></textarea>
+                    <input type="text" x-model="productColor" placeholder="Color / style (e.g. Cream beige, off-white, minimal)" class="w-full bg-[#111] border-2 border-[#222] rounded-xl p-3 text-white text-xs font-inherit focus:outline-none focus:border-[#c9a96e]" />
+                </div>
+            </div>
+
+            <!-- Section 02: Talent Type -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">02 · Talent Type</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <template x-for="model in MODEL_PRESETS" :key="model.id">
+                        <button @click="selectedModel = model.id" 
+                                :class="selectedModel === model.id ? 'bg-[#1a1208] border-[#c9a96e]' : 'bg-[#111] border-[#222]'"
+                                class="border-2 rounded-xl p-3.5 text-left cursor-pointer transition-all w-full">
+                            <div class="text-xl mb-1.5" x-text="model.emoji"></div>
+                            <div class="text-xs font-bold" :class="selectedModel === model.id ? 'text-[#c9a96e]' : 'text-[#ddd]'" x-text="model.label"></div>
+                            <div class="text-[11px] text-[#666] mt-1 leading-normal" x-text="model.description"></div>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Section 03: Talent Age -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">03 · Talent Age</div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="age in AGE_RANGE" :key="age.id">
+                        <button @click="selectedAge = age.id"
+                                :class="selectedAge === age.id ? 'border-[#c9a96e] bg-[#1a1208] text-[#c9a96e]' : 'border-[#2a2a2a] bg-[#111] text-[#888]'"
+                                class="px-3.5 py-2 border-2 rounded-full text-xs cursor-pointer transition-all whitespace-nowrap" x-text="age.label">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Section 04: Mood / Vibe -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">04 · Mood / Vibe</div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="mood in MOOD_PRESETS" :key="mood.id">
+                        <button @click="selectedMood = mood.id"
+                                :class="selectedMood === mood.id ? 'border-[#c9a96e] bg-[#1a1208] text-[#c9a96e]' : 'border-[#2a2a2a] bg-[#111] text-[#888]'"
+                                class="px-3.5 py-2 border-2 rounded-full text-xs cursor-pointer transition-all whitespace-nowrap">
+                            <span x-text="mood.emoji + ' ' + mood.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Section 05: Location Vibe -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">05 · Location Vibe</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <template x-for="loc in LOCATION_PRESETS" :key="loc.id">
+                        <button @click="selectedLocation = (selectedLocation === loc.id ? null : loc.id)" 
+                                :class="selectedLocation === loc.id ? 'bg-[#0d1a2a] border-[#6aabde]' : 'bg-[#111] border-[#222]'"
+                                class="border-2 rounded-xl p-3 text-left cursor-pointer transition-all w-full">
+                            <div class="text-xl mb-1.5" x-text="loc.emoji"></div>
+                            <div class="text-xs font-bold" :class="selectedLocation === loc.id ? 'text-[#6aabde]' : 'text-[#ddd]'" x-text="loc.label"></div>
+                            <div class="text-[11px] text-[#666] mt-0.5" x-text="loc.description"></div>
+                        </button>
+                    </template>
+                </div>
+                <div class="text-[11px] text-[#555] mt-2">Optional — sets the background environment & lighting atmosphere for all scenes.</div>
+            </div>
+
+            <!-- Section 06: Select Scenes -->
+            <div>
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-3 font-semibold">
+                    06 · Select Scenes (<span x-text="selectedScenes.length"></span> selected)
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <template x-for="scene in SCENE_PRESETS" :key="scene.id">
+                        <button @click="toggleScene(scene.id)" 
+                                :class="selectedScenes.includes(scene.id) ? 'bg-[#1a1208] border-[#c9a96e]' : 'bg-[#111] border-[#222]'"
+                                class="border-2 rounded-xl p-3 text-left cursor-pointer transition-all w-full">
+                            <div class="text-xl mb-1" x-text="scene.emoji"></div>
+                            <div class="text-xs font-bold" :class="selectedScenes.includes(scene.id) ? 'text-[#c9a96e]' : 'text-[#ddd]'" x-text="scene.label"></div>
+                            <div class="text-[11px] text-[#666] mt-0.5" x-text="scene.description"></div>
+                        </button>
+                    </template>
+                </div>
+                <div class="text-[11px] text-[#555] mt-2">Select 1–10 scenes. Each scene generates 1 image prompt + 1 video prompt.</div>
+            </div>
+
+            <!-- Error Notification -->
+            <div x-show="error" class="bg-[#1a0808] border border-[#5c2020] rounded-lg p-3 text-[#e07070] text-sm" x-cloak>
+                ⚠ <span x-text="error"></span>
+            </div>
+
+            <!-- Generate Button -->
+            <button @click="generatePrompts()" :disabled="loading"
+                    :class="loading ? 'bg-[#1a1a1a] text-[#555] cursor-not-allowed' : 'bg-gradient-to-r from-[#c9a96e] to-[#a07840] text-black font-extrabold cursor-pointer hover:opacity-90'"
+                    class="w-full border-none rounded-xl p-4 text-sm tracking-wide transition-all">
+                <span x-text="loading ? '⏳ Generating prompts...' : '✦ Generate ' + (selectedScenes.length > 0 ? selectedScenes.length : '') + ' Scene Prompts'"></span>
+            </button>
+
+            <!-- Results Output Area -->
+            <div x-show="generatedPrompts.length > 0" x-cloak class="mt-8 space-y-6">
+                <div class="text-[11px] tracking-[2px] uppercase text-[#c9a96e] mb-4 font-semibold">
+                    ✦ <span x-text="generatedPrompts.length"></span> Scene<span x-text="generatedPrompts.length > 1 ? 's' : ''"></span> Generated
+                </div>
+
+                <template x-for="(scene, idx) in generatedPrompts" :key="idx">
+                    <div class="border border-[#222] rounded-xl p-5 bg-[#0a0a0a] mb-6">
+                        <div class="text-sm font-bold text-white mb-4 border-b border-[#1a1a1a] pb-2" x-text="scene.scene_label"></div>
+                        
+                        <!-- Image Prompt Box -->
+                        <div x-data="{ copied: false }" class="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg p-4 mb-4">
+                            <div class="flex justify-between items-center mb-2.5">
+                                <span class="text-[10px] tracking-[2px] uppercase text-[#c9a96e] font-bold">Image Prompt</span>
+                                <button @click="navigator.clipboard.writeText(scene.image_prompt); copied = true; setTimeout(() => copied = false, 2000)"
+                                        :class="copied ? 'bg-[#1a3a1a] border-[#2a5a2a] text-[#5cba5c]' : 'bg-[#1a1a1a] border-[#333] text-[#888]'"
+                                        class="border px-2.5 py-1 rounded-md text-[11px] cursor-pointer transition-all">
+                                    <span x-text="copied ? '✓ Copied' : 'Copy'"></span>
+                                </button>
+                            </div>
+                            <p class="text-xs text-[#bbb] font-mono whitespace-pre-wrap leading-relaxed" x-text="scene.image_prompt"></p>
+                        </div>
+
+                        <!-- Video Prompt(s) Box -->
+                        <template x-for="(vid, vIdx) in scene.video_prompts" :key="vIdx">
+                            <div x-data="{ copied: false }" class="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg p-4 mb-2.5">
+                                <div class="flex justify-between items-center mb-2.5">
+                                    <span class="text-[10px] tracking-[2px] uppercase text-[#c9a96e] font-bold" x-text="vid.label"></span>
+                                    <button @click="navigator.clipboard.writeText(vid.prompt); copied = true; setTimeout(() => copied = false, 2000)"
+                                            :class="copied ? 'bg-[#1a3a1a] border-[#2a5a2a] text-[#5cba5c]' : 'bg-[#1a1a1a] border-[#333] text-[#888]'"
+                                            class="border px-2.5 py-1 rounded-md text-[11px] cursor-pointer transition-all">
+                                        <span x-text="copied ? '✓ Copied' : 'Copy'"></span>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-[#bbb] font-mono whitespace-pre-wrap leading-relaxed" x-text="vid.prompt"></p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Application Engine Logic (Data, Preset Storage, and Simulations) -->
+    <script>
+        function ugcApp() {
+            return {
+                // Preset Constants
+                MODEL_PRESETS: [
+                  { id: "asian_korean", label: "Asian – Korean", emoji: "🇰🇷", description: "Fair skin, soft features, thick dark hair", visualDesc: "Korean-featured young woman, fair glowing skin, straight dark hair, soft facial features, trendy Korean aesthetic" },
+                  { id: "asian_southeast", label: "Asian – Southeast", emoji: "🌏", description: "Warm complexion, tropical features, natural beauty", visualDesc: "Southeast Asian woman, warm golden-brown skin, dark expressive eyes, natural beauty, Indonesian/Thai/Filipino features" },
+                  { id: "asian_japanese", label: "Asian – Japanese", emoji: "🇯🇵", description: "Pale skin, minimalist aesthetic, elegant", visualDesc: "Japanese-featured woman, pale flawless skin, refined minimalist beauty, sleek straight hair, elegant demeanor" },
+                  { id: "western_american", label: "Western – American", emoji: "🇺🇸", description: "Strong features, wide smile, sporty vibe", visualDesc: "American woman, confident smile, bright eyes, healthy athletic build, approachable girl-next-door energy" },
+                  { id: "western_european", label: "Western – European", emoji: "🇪🇺", description: "Sharp features, editorial look, high fashion", visualDesc: "European woman, sharp editorial features, high cheekbones, sophisticated fashion-forward look, model-like presence" },
+                  { id: "latina", label: "Latina", emoji: "💃", description: "Olive skin, wavy hair, expressive energy", visualDesc: "Latina woman, warm olive skin, voluminous wavy dark hair, expressive dark eyes, vibrant confident energy" },
+                  { id: "black_american", label: "Black – American", emoji: "✨", description: "Deep skin tone, bold look, powerful presence", visualDesc: "Black American woman, rich deep brown skin, bold confident presence, natural or styled hair, effortlessly stylish" },
+                  { id: "middle_eastern", label: "Middle Eastern", emoji: "🌙", description: "Defined features, deep eyes, luxurious vibe", visualDesc: "Middle Eastern woman, defined elegant features, deep soulful eyes, lush dark hair, naturally luxurious appearance" }
+                ],
+                SCENE_PRESETS: [
+                  { id: "candid_outdoor", label: "Candid Outdoor", emoji: "🌿", description: "City streets, parks, spontaneous", imageBase: "candid street photography style, natural daylight, urban sidewalk environment, shallow depth of field, golden hour warm tone, lifestyle fashion editorial", videoBase: "woman walking slowly along city sidewalk, camera tracks alongside at eye level, candid unaware feel, natural stride, no posed expression, cinematic handheld, 24fps, 9:16" },
+                  { id: "selfie_mirror", label: "Mirror Selfie", emoji: "🪞", description: "Bedroom, fitting room, lifestyle vibe", imageBase: "mirror selfie, woman holding phone up in front of face at chest-to-face height, phone clearly visible in reflection, standing in front of large bedroom or fitting room mirror, warm ambient lighting, full outfit visible in mirror reflection, authentic amateur selfie aesthetic", videoBase: "woman stands facing mirror holding phone up with one hand at selfie angle — phone stays raised and visible in reflection the entire clip, she tilts her head slightly and gives a soft smile to the mirror, free hand lightly adjusts outfit or rests at side, handheld amateur feel with subtle natural sway, phone NEVER lowers, warm cozy room lighting, 9:16" },
+                  { id: "public_transport", label: "Public Transport", emoji: "🚇", description: "MRT, bus, train – urban trendy", imageBase: "seated on public transport, subway or bus interior, natural window light streaming in, looking out window, urban commuter candid aesthetic", videoBase: "woman seated near window on subway or bus, gazes out then slowly turns to face camera with a soft smile, silent no dialogue, calm confident pose, static camera inside vehicle, city blurs past outside window, cinematic ambient light, 9:16" },
+                  { id: "cafe_interior", label: "Cafe / Indoor", emoji: "☕", description: "Aesthetic cafe, coffee table, cozy", imageBase: "seated at cafe table, soft natural window light, coffee cup nearby, warm bokeh background, cozy lifestyle photography, full outfit visible from above waist", videoBase: "woman sitting at cafe table, holds coffee cup gently, looks down then raises eyes toward camera with a warm smile, silent no dialogue, still relaxed pose, warm bokeh lights behind, static camera on tripod, soft window light, 9:16" },
+                  { id: "outdoor_nature", label: "Nature / Park", emoji: "🌸", description: "Flower garden, beach, mountains", imageBase: "outdoor nature setting, lush green park or flower garden path, natural bright daylight, fresh airy mood, full outfit visible, fashion lifestyle editorial", videoBase: "woman standing on garden path surrounded by greenery, light breeze gently moves hair, she holds a soft smile toward camera, silent no dialogue, still confident pose, slow dolly push-in from medium to close, soft natural daylight, 9:16" },
+                  { id: "fashion_editorial", label: "Fashion Editorial", emoji: "📸", description: "Studio-like, bold pose, high fashion", imageBase: "fashion editorial photography, clean minimal studio background, dramatic side lighting, confident standing pose with hand on hip, magazine quality, full outfit in frame", videoBase: "woman in studio, standing upright in editorial pose hand on hip, holds confident smile directly into camera lens, silent no dialogue, minimal body movement, subtle weight shift only, locked-off camera, dramatic single-source side lighting, 9:16" },
+                  { id: "gym_sporty", label: "Gym / Sporty", emoji: "💪", description: "Activewear, gym, dynamic movement", imageBase: "gym or outdoor workout setting, standing confident pose or light stretch, athletic energy, bright motivational natural lighting, full outfit clearly visible", videoBase: "woman at gym or outdoor fitness area, stands in confident athletic pose, smiles toward camera with energy, silent no dialogue, slight arm position adjustment only, camera holds steady at medium shot, bright airy lighting, 9:16" },
+                  { id: "home_cozy", label: "Home / Cozy", emoji: "🏠", description: "At home, sofa, morning vibe", imageBase: "cozy home interior, natural morning window light, seated on sofa or standing near window, authentic home lifestyle, full outfit visible, warm soft tones", videoBase: "woman seated on couch near morning window light, holds a gentle warm smile toward camera, silent no dialogue, relaxed still pose with hands in lap, static wide shot, soft natural light from window, warm home atmosphere, 9:16" },
+                  { id: "medium_close_pose", label: "Medium Close Pose", emoji: "🎬", description: "Close cam, hand-to-hair pose, head tilt", imageBase: "medium close-up portrait from chest upward, woman gently raises one hand to brush or lift hair aside, slight head tilt, soft moody warm indoor ambient lighting, background slightly blurred, fashion portrait vertical, 85mm equivalent lens, 9:16", videoBase: "medium close-up framing chest-upward, woman slowly raises one hand to gently brush hair aside with a subtle head tilt, soft eye contact with camera, then hand lowers back slowly, silent no dialogue, minimal natural movement only, camera locked-off static, warm dim ambient indoor light, cinematic shallow depth of field, 9:16" },
+                  { id: "medium_cross_arms", label: "Arms Crossed Medium", emoji: "💅", description: "Arms crossed, direct gaze, confident close-up", imageBase: "medium waist-up shot, woman standing with arms crossed confidently, direct soft eye contact with camera, neutral to gentle expression, warm indoor ambient lighting, blurred room background, fashion portrait editorial feel, 50mm equivalent lens, vertical 9:16", videoBase: "medium waist-up framing, woman stands with arms crossed, holds confident direct gaze into camera lens, slow natural blink and subtle jaw lift, silent no dialogue, still pose with very slight weight shift, camera locked-off static, soft warm indoor ambient light, cinematic portrait mood, 9:16" }
+                ],
+                AGE_RANGE: [
+                  { id: "18_22", label: "18–22 (Gen Z)" },
+                  { id: "23_28", label: "23–28 (Young Adult)" },
+                  { id: "29_35", label: "29–35 (Millennial)" },
+                  { id: "36_45", label: "36–45 (Mature)" }
+                ],
+                MOOD_PRESETS: [
+                  { id: "confident", label: "Confident & Bold", emoji: "🔥" },
+                  { id: "soft_natural", label: "Soft & Natural", emoji: "🌸" },
+                  { id: "playful", label: "Playful & Fun", emoji: "😄" },
+                  { id: "luxurious", label: "Luxurious & Classy", emoji: "💎" },
+                  { id: "minimal_chic", label: "Minimal & Chic", emoji: "🖤" },
+                  { id: "sporty_fresh", label: "Sporty & Fresh", emoji: "⚡" }
+                ],
+                LOCATION_PRESETS: [
+                  { id: "indonesia", label: "Indonesia", emoji: "🇮🇩", description: "Tropical, warm, lush green", locationDesc: "Indonesian setting — lush tropical greenery, warm golden sunlight, traditional market alleys, modern Jakarta streets or Bali villas, rich earthy warm tones, humid ambient glow" },
+                  { id: "korea", label: "Korea", emoji: "🇰🇷", description: "Hanok alleys, city lights, K-aesthetic", locationDesc: "Korean setting — Seoul city streets, Hanok village alleyways, modern glass buildings, cherry blossom parks, clean minimal architecture, cool pastel tones, soft diffused daylight" },
+                  { id: "japan", label: "Japan", emoji: "🇯🇵", description: "Minimal, zen, urban quiet", locationDesc: "Japanese setting — quiet Tokyo side streets, minimal interior cafes, zen garden paths, soft grey overcast light or golden late afternoon, clean architectural lines, muted natural tones" },
+                  { id: "usa", label: "USA", emoji: "🇺🇸", description: "Urban, vibrant, NYC or LA vibe", locationDesc: "American urban setting — New York City sidewalks or LA sunshine, bold architecture, busy street energy, high-contrast daylight, urban concrete textures, bright open sky" },
+                  { id: "europe", label: "Europe", emoji: "🇪🇺", description: "Cobblestone, cafes, old-world charm", locationDesc: "European setting — Paris or Milan cobblestone streets, outdoor cafe terraces, classic stone architecture, soft overcast white sky, romantic warm ambient glow, fashion-forward urban aesthetic" },
+                  { id: "uk", label: "UK", emoji: "🇬🇧", description: "Moody, editorial, grey skies", locationDesc: "UK setting — London grey skies, brick townhouse streets, Hyde Park greenery, moody overcast diffused light, editorial fashion atmosphere, cool blue-grey colour palette" },
+                  { id: "australia", label: "Australia", emoji: "🇦🇺", description: "Beach, bright, outdoor lifestyle", locationDesc: "Australian setting — Bondi Beach boardwalk, bright open outdoor spaces, sun-drenched parks, clean coastal architecture, crisp blue sky, fresh natural daylight, relaxed lifestyle energy" },
+                  { id: "middle_east", label: "Middle East", emoji: "🌙", description: "Luxe, golden hour, opulent", locationDesc: "Middle Eastern setting — Dubai modern skyline, opulent hotel lobbies, golden desert light, marble interiors, warm amber tones, dramatic sunset backdrops, luxury architectural details" }
+                ],
+
+                // App State
+                productName: "",
+                productDesc: "",
+                productColor: "",
+                clothingDetails: "Premium quality woven structure with soft tactile texture, detailed edge finishing.",
+                selectedModel: null,
+                selectedLocation: null,
+                selectedScenes: [],
+                selectedAge: null,
+                selectedMood: null,
+                generatedPrompts: [],
+                
+                // UI States
+                preview: null,
+                dragOver: false,
+                analyzing: false,
+                analyzed: false,
+                loading: false,
+                error: "",
+
+                // Actions & Methods
+                handleFileChange(e) {
+                    const file = e.target.files[0];
+                    this.processFile(file);
+                },
+                handleDrop(e) {
+                    const file = e.dataTransfer.files[0];
+                    this.processFile(file);
+                },
+                processFile(file) {
+                    if (!file || !file.type.startsWith("image/")) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        this.preview = event.target.result;
+                        this.analyzed = false;
+                    };
+                    reader.readAsDataURL(file);
+                },
+                removeImage() {
+                    this.preview = null;
+                    this.analyzed = false;
+                    this.$refs.fileInput.value = "";
+                },
+                analyzeImage() {
+                    this.analyzing = true;
+                    // Simulating AI vision API analyzer call natively
+                    setTimeout(() => {
+                        this.productName = "Off-Shoulder Ribbed Knit Sweater";
+                        this.productDesc = "An elegant off-shoulder long sleeve sweater made from ultra-soft ribbed knit material. Features a relaxed yet body-hugging fit suitable for casual minimalist styling.";
+                        this.productColor = "Cream beige, soft warm tone";
+                        this.clothingDetails = "Pronounced horizontal ribbed texture weave, wide elegant off-shoulder fold silhouette, elongated sleeves with structured cuffs, premium seamless edge construction.";
+                        this.analyzing = false;
+                        this.analyzed = true;
+                    }, 1500);
+                },
+                toggleScene(id) {
+                    if (this.selectedScenes.includes(id)) {
+                        this.selectedScenes = this.selectedScenes.filter(s => s !== id);
+                    } else {
+                        this.selectedScenes.push(id);
+                    }
+                },
+                generatePrompts() {
+                    if (!this.productName || !this.selectedModel || this.selectedScenes.length === 0) {
+                        this.error = "Please complete: product name, select a talent type, and at least 1 scene.";
+                        return;
+                    }
+                    this.error = "";
+                    this.loading = true;
+                    this.generatedPrompts = [];
+
+                    // Dynamic local prompt builder simulation matching prompt constraints
+                    setTimeout(() => {
+                        const modelObj = this.MODEL_PRESETS.find(m => m.id === this.selectedModel);
+                        const locationObj = this.LOCATION_PRESETS.find(l => l.id === this.selectedLocation);
+                        const ageObj = this.AGE_RANGE.find(a => a.id === this.selectedAge)?.label || "23-28 years old";
+                        const moodObj = this.MOOD_PRESETS.find(m => m.id === this.selectedMood)?.label || "Natural & Confident";
+
+                        const locationText = locationObj ? locationObj.locationDesc : "set in a modern aesthetic neutral architectural backdrop with soft balanced ambient lighting";
+
+                        this.selectedScenes.forEach(sceneId => {
+                            const sceneObj = this.SCENE_PRESETS.find(s => s.id === sceneId);
+                            const isPoseScene = ["selfie_mirror", "medium_close_pose", "medium_cross_arms"].includes(sceneId);
+                            
+                            let baseImagePrompt = `UGC fashion photography, 9:16 vertical frame. A beautiful ${modelObj.visualDesc}, around ${ageObj}, exuding a ${moodObj} vibe. She is completely clothed and styled elegantly in a premium ${this.productName} (${this.productColor}). Clothing description: ${this.clothingDetails}. Scene environment: ${sceneObj.imageBase}, ${locationText}. Masterpiece structure, hyper-realistic fiber detailing, soft portrait lighting, captured on an 85mm equivalent lens, crisp atmospheric depth.`;
+                            
+                            let generatedVideoPrompts = [];
+
+                            if (isPoseScene) {
+                                generatedVideoPrompts = [
+                                    { label: "Pose 1 – Subtle Adjustment", prompt: `UGC cinematic video style, 9:16 aspect ratio. ${sceneObj.videoBase}. Focused shot of the ${modelObj.visualDesc} in ${this.productName}, gracefully shifting weight with a natural soft facial expression. Locked-off static camera setup, high-fidelity apparel texture render, silent, no dialogue, soft smile toward camera, confident still pose.` },
+                                    { label: "Pose 2 – Profile Glance", prompt: `UGC cinematic video style, 9:16 aspect ratio. ${sceneObj.videoBase}. The subject stands displaying the side silhouette profile of the knit garments, then slowly turns her gaze toward the camera. Soft natural lighting, highly structured clothing drape, silent, no dialogue, soft smile toward camera, confident still pose.` },
+                                    { label: "Pose 3 – Macro Detail Look", prompt: `UGC cinematic video style, 9:16 aspect ratio. ${sceneObj.videoBase}. Slow macro tracking pan from waist upward showing the detailed textured premium fabric finish of the outfit. Subject remains relaxed, holding soft direct eye contact. Professional single source studio ambient glow, silent, no dialogue, confident still pose.` },
+                                    { label: "Pose 4 – Candid Silhouette Tilt", prompt: `UGC cinematic video style, 9:16 aspect ratio. ${sceneObj.videoBase}. Close-up framing, the woman executes a slight head tilt while adjusting her stance naturally, focusing the viewer on the neckline structure. Natural warm illumination, high fashion look, silent, no dialogue, soft smile toward camera, confident still pose.` }
+                                ];
+                            } else {
+                                generatedVideoPrompts = [
+                                    { label: "Video 1 – Cinematic Scene", prompt: `UGC cinematic video, 9:16 layout. ${sceneObj.videoBase}. Showcasing the ${modelObj.visualDesc} wearing the elegant ${this.productName}. Seamless environmental tracking, capturing natural clothing motion physics and authentic fabric texture drape under ${locationText}. High definition production, silent, no dialogue, soft smile toward camera, confident still pose.` }
+                                ];
+                            }
+
+                            this.generatedPrompts.push({
+                                scene_id: sceneId,
+                                scene_label: sceneObj.emoji + " " + sceneObj.label,
+                                image_prompt: baseImagePrompt,
+                                video_prompts: generatedVideoPrompts
+                            });
+                        });
+                        this.loading = false;
+                    }, 1200);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
